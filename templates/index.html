@@ -237,7 +237,7 @@
       </div>
       <div class="grid-2" style="gap:16px;">
         <div><label>Reply-To Email</label><input type="text" id="reply-to" value="gatewaytoeastafrica@gmail.com"></div>
-        <div><label>Brevo API Key</label><input type="password" id="api-key-compose" value="" placeholder="Enter your Brevo API key"></div>
+        <div><label>Brevo API Key</label><input type="text" id="api-key-compose" value="Configured server-side" readonly style="color:var(--green);border-color:var(--green);"></div>
       </div>
     </div>
 
@@ -600,7 +600,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
 async function activateCampaign() {
   if (!contacts.length) { alert('Load your contacts first.'); return; }
   const apiKey = document.getElementById('api-key-compose').value.trim();
-  if (!apiKey) { alert('Enter your Brevo API key in the Compose tab.'); return; }
+  // API key is configured server-side via Railway env var
 
   campaignActive = true;
   document.getElementById('launchBtn').disabled = true;

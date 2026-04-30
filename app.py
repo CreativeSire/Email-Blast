@@ -6,6 +6,7 @@ app = Flask(__name__)
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 BREVO_ACCOUNT_URL = "https://api.brevo.com/v3/account"
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 
 
 @app.route("/")
@@ -16,9 +17,9 @@ def index():
 @app.route("/api/test-connection", methods=["POST"])
 def test_connection():
     data = request.get_json()
-    api_key = data.get("api_key", "").strip()
+    api_key = BREVO_API_KEY or data.get("api_key", "").strip()
     if not api_key:
-        return jsonify({"success": False, "message": "No API key provided"}), 400
+        return jsonify({"success": False, "message": "No API key configured"}), 400
 
     try:
         r = requests.get(BREVO_ACCOUNT_URL, headers={"api-key": api_key, "accept": "application/json"}, timeout=10)
@@ -34,7 +35,7 @@ def test_connection():
 @app.route("/api/send-batch", methods=["POST"])
 def send_batch():
     data = request.get_json()
-    api_key = data.get("api_key", "").strip()
+    api_key = BREVO_API_KEY or data.get("api_key", "").strip()
     sender_email = data.get("sender_email", "").strip()
     from_name = data.get("from_name", "Gateway to East Africa").strip()
     reply_to = data.get("reply_to", sender_email).strip()
