@@ -1,12 +1,55 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import os
+import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 BREVO_ACCOUNT_URL = "https://api.brevo.com/v3/account"
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+DB_PATH = os.environ.get("DB_PATH", "email_blast.db")
+
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS campaigns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email_type TEXT,
+            subject TEXT,
+            sender_email TEXT,
+            from_name TEXT,
+            total_contacts INTEGER DEFAULT 0,
+            sent_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS sends (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER NOT NULL,
+            recipient_email TEXT NOT NULL,
+            recipient_name TEXT,
+            status TEXT NOT NULL,
+            error_message TEXT,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+init_db()
 
 
 @app.route("/")
@@ -46,12 +89,14 @@ def send_batch():
     subject = data.get("subject", "").strip()
     body_template = data.get("body", "").strip()
     contacts = data.get("contacts", [])
+    campaign_id = data.get("campaign_id")
 
     if not api_key or not sender_email or not subject or not body_template or not contacts:
         return jsonify({"success": False, "message": "Missing required fields"}), 400
 
     sent = []
     failed = []
+    conn = get_db()
 
     for contact in contacts:
         email = contact.get("email", "").strip()
@@ -78,16 +123,105 @@ def send_batch():
             )
             if r.ok:
                 sent.append(email)
+                if campaign_id:
+                    conn.execute(
+                        "INSERT INTO sends (campaign_id, recipient_email, recipient_name, status) VALUES (?, ?, ?, ?)",
+                        (campaign_id, email, name, "sent")
+                    )
             else:
                 try:
                     err = r.json()
-                    failed.append({"email": email, "reason": err.get("message", str(r.status_code))})
+                    reason = err.get("message", str(r.status_code))
                 except:
-                    failed.append({"email": email, "reason": f"Brevo error {r.status_code}: {r.text}"})
+                    reason = f"Brevo error {r.status_code}: {r.text}"
+                failed.append({"email": email, "reason": reason})
+                if campaign_id:
+                    conn.execute(
+                        "INSERT INTO sends (campaign_id, recipient_email, recipient_name, status, error_message) VALUES (?, ?, ?, ?, ?)",
+                        (campaign_id, email, name, "failed", reason)
+                    )
         except Exception as e:
             failed.append({"email": email, "reason": str(e)})
+            if campaign_id:
+                conn.execute(
+                    "INSERT INTO sends (campaign_id, recipient_email, recipient_name, status, error_message) VALUES (?, ?, ?, ?, ?)",
+                    (campaign_id, email, name, "failed", str(e))
+                )
 
+    conn.commit()
+    conn.close()
     return jsonify({"success": True, "sent": len(sent), "failed": failed})
+
+
+@app.route("/api/campaign", methods=["POST"])
+def create_campaign():
+    data = request.get_json()
+    name = data.get("name", "Untitled Campaign").strip()
+    email_type = data.get("email_type", "").strip()
+    subject = data.get("subject", "").strip()
+    sender_email = data.get("sender_email", "").strip()
+    from_name = data.get("from_name", "").strip()
+    total_contacts = data.get("total_contacts", 0)
+
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO campaigns (name, email_type, subject, sender_email, from_name, total_contacts) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, email_type, subject, sender_email, from_name, total_contacts)
+    )
+    campaign_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "campaign_id": campaign_id})
+
+
+@app.route("/api/campaign/<int:campaign_id>", methods=["PATCH"])
+def update_campaign(campaign_id):
+    data = request.get_json()
+    sent_count = data.get("sent_count")
+    failed_count = data.get("failed_count")
+    completed = data.get("completed", False)
+
+    conn = get_db()
+    if sent_count is not None:
+        conn.execute("UPDATE campaigns SET sent_count = ? WHERE id = ?", (sent_count, campaign_id))
+    if failed_count is not None:
+        conn.execute("UPDATE campaigns SET failed_count = ? WHERE id = ?", (failed_count, campaign_id))
+    if completed:
+        conn.execute("UPDATE campaigns SET completed_at = ? WHERE id = ?", (datetime.utcnow().isoformat(), campaign_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/history")
+def get_history():
+    conn = get_db()
+    campaigns = conn.execute(
+        "SELECT * FROM campaigns ORDER BY created_at DESC"
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        "success": True,
+        "campaigns": [dict(row) for row in campaigns]
+    })
+
+
+@app.route("/api/history/<int:campaign_id>")
+def get_campaign_details(campaign_id):
+    conn = get_db()
+    campaign = conn.execute("SELECT * FROM campaigns WHERE id = ?", (campaign_id,)).fetchone()
+    sends = conn.execute(
+        "SELECT * FROM sends WHERE campaign_id = ? ORDER BY sent_at DESC",
+        (campaign_id,)
+    ).fetchall()
+    conn.close()
+    if not campaign:
+        return jsonify({"success": False, "message": "Campaign not found"}), 404
+    return jsonify({
+        "success": True,
+        "campaign": dict(campaign),
+        "sends": [dict(row) for row in sends]
+    })
 
 
 if __name__ == "__main__":

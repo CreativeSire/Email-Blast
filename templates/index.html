@@ -197,6 +197,7 @@
     <div class="tab" onclick="switchTab('compose')">② Compose</div>
     <div class="tab" onclick="switchTab('schedule')">③ Schedule</div>
     <div class="tab" onclick="switchTab('launch')">④ Launch</div>
+    <div class="tab" onclick="switchTab('history')">⑤ History</div>
   </div>
 
   <!-- TAB 1 -->
@@ -421,6 +422,23 @@ Gateway to East Africa</textarea></div>
     </div>
   </div>
 
+  <!-- TAB 5: HISTORY -->
+  <div class="tab-panel" id="tab-history">
+    <div class="page-intro" style="margin-bottom:20px;">
+      <div class="section-label">Campaign Archive</div>
+      <h2>Send History</h2>
+      <p class="subtitle">Every campaign, every contact, every result. Logged automatically.</p>
+    </div>
+    <div id="historyList" style="margin-bottom:20px;"></div>
+    <div id="historyDetail" style="display:none;">
+      <div class="flex items-center justify-between mb-12">
+        <div class="section-label" style="margin:0">Campaign Details</div>
+        <button class="btn btn-sm btn-outline" onclick="closeHistoryDetail()">&larr; Back</button>
+      </div>
+      <div id="historyDetailContent"></div>
+    </div>
+  </div>
+
   <!-- TAB 4 -->
   <div class="tab-panel" id="tab-launch">
     <div class="card mb-16">
@@ -479,6 +497,7 @@ function switchTab(name) {
     if (t.textContent.toLowerCase().includes(name)) t.classList.add('active');
   });
   if (name === 'launch') updateChecklist();
+  if (name === 'history') loadHistory();
 }
 
 function switchComposeTab(name) {
@@ -554,6 +573,23 @@ async function sendBlast(emailKey) {
   document.getElementById('status-'+emailKey).textContent = 'Sending...';
   log('info', `Starting blast [${emailKey}] to ${contacts.length} contacts...`);
 
+  // Create campaign record
+  let campaignId = null;
+  try {
+    const cres = await fetch('/api/campaign', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: `${subject} — ${new Date().toLocaleString()}`,
+        email_type: emailKey,
+        subject, sender_email: senderEmail, from_name: fromName,
+        total_contacts: contacts.length
+      })
+    });
+    const cdata = await cres.json();
+    if (cdata.success) campaignId = cdata.campaign_id;
+  } catch (e) { log('err', 'Failed to create campaign record: ' + e.message); }
+
   const BATCH = 10;
   let sent=0, failed=0;
 
@@ -566,7 +602,7 @@ async function sendBlast(emailKey) {
       body: JSON.stringify({
         api_key: apiKey, sender_email: senderEmail,
         from_name: fromName, reply_to: replyTo,
-        subject, body, contacts: batch
+        subject, body, contacts: batch, campaign_id: campaignId
       })
     });
     const data = await res.json();
@@ -585,6 +621,17 @@ async function sendBlast(emailKey) {
     document.getElementById('progressFill').style.width = Math.min(pct,100)+'%';
     document.getElementById('progressLabel').textContent = `${Math.min(i+BATCH,contacts.length)} of ${contacts.length} processed...`;
     await sleep(200);
+  }
+
+  // Update campaign final stats
+  if (campaignId) {
+    try {
+      await fetch(`/api/campaign/${campaignId}`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({sent_count: sent, failed_count: failed, completed: true})
+      });
+    } catch (e) { log('err', 'Failed to update campaign stats: ' + e.message); }
   }
 
   setDot(emailKey, sent > 0 ? 'done' : 'failed');
@@ -645,6 +692,97 @@ function log(type, msg) {
   const pre = {ok:'✓', err:'✗', info:'ℹ'}[type] || '·';
   box.innerHTML += `<div class="${cls}">[${t}] ${pre} ${msg}</div>`;
   box.scrollTop = box.scrollHeight;
+}
+
+async function loadHistory() {
+  const container = document.getElementById('historyList');
+  container.innerHTML = '<div class="log-muted" style="padding:14px 0;font-size:12px;">Loading history...</div>';
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    if (data.success) renderHistory(data.campaigns);
+    else container.innerHTML = '<div class="log-err" style="padding:14px 0;">Failed to load history.</div>';
+  } catch (e) {
+    container.innerHTML = '<div class="log-err" style="padding:14px 0;">Error: ' + e.message + '</div>';
+  }
+}
+
+function renderHistory(campaigns) {
+  const container = document.getElementById('historyList');
+  if (!campaigns.length) {
+    container.innerHTML = '<div class="log-muted" style="padding:14px 0;font-size:12px;">No campaigns yet. Send your first blast to see history here.</div>';
+    return;
+  }
+  container.innerHTML = campaigns.map(c => {
+    const dt = new Date(c.created_at).toLocaleString();
+    const statusColor = c.completed_at ? 'var(--green)' : 'var(--gold)';
+    const statusText = c.completed_at ? 'Completed' : 'In Progress';
+    return `
+      <div class="schedule-row" style="cursor:pointer;" onclick="showCampaignDetails(${c.id})">
+        <div class="status-dot" style="background:${statusColor};"></div>
+        <span class="type-badge type-blast">${c.email_type || 'BLAST'}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.subject || c.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${dt}</div>
+        </div>
+        <div style="text-align:right;min-width:90px;">
+          <div style="font-size:13px;color:var(--green);">${c.sent_count} sent</div>
+          <div style="font-size:11px;color:var(--red);">${c.failed_count} failed</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function showCampaignDetails(id) {
+  document.getElementById('historyList').style.display = 'none';
+  document.getElementById('historyDetail').style.display = 'block';
+  const content = document.getElementById('historyDetailContent');
+  content.innerHTML = '<div class="log-muted" style="padding:14px 0;font-size:12px;">Loading details...</div>';
+  try {
+    const res = await fetch(`/api/history/${id}`);
+    const data = await res.json();
+    if (!data.success) { content.innerHTML = '<div class="log-err">Failed to load details.</div>'; return; }
+    const c = data.campaign;
+    const sends = data.sends;
+    const dt = new Date(c.created_at).toLocaleString();
+    const completedDt = c.completed_at ? new Date(c.completed_at).toLocaleString() : '—';
+
+    content.innerHTML = `
+      <div class="card mb-16">
+        <div class="grid-2">
+          <div><label>Campaign</label><div style="font-size:13px;color:var(--white);">${c.name}</div></div>
+          <div><label>Subject</label><div style="font-size:13px;color:var(--white);">${c.subject || '—'}</div></div>
+          <div><label>From</label><div style="font-size:13px;color:var(--white);">${c.from_name} &lt;${c.sender_email}&gt;</div></div>
+          <div><label>Type</label><div style="font-size:13px;color:var(--white);">${c.email_type || '—'}</div></div>
+          <div><label>Created</label><div style="font-size:13px;color:var(--white);">${dt}</div></div>
+          <div><label>Completed</label><div style="font-size:13px;color:var(--white);">${completedDt}</div></div>
+        </div>
+        <div class="counter-strip" style="margin-top:16px;margin-bottom:0;">
+          <div class="counter-item"><div class="counter-num gold">${c.total_contacts}</div><div class="counter-label">Total</div></div>
+          <div class="counter-item"><div class="counter-num green">${c.sent_count}</div><div class="counter-label">Sent</div></div>
+          <div class="counter-item"><div class="counter-num red">${c.failed_count}</div><div class="counter-label">Failed</div></div>
+        </div>
+      </div>
+      <div class="section-label mb-12">Individual Sends (${sends.length})</div>
+      <div class="email-list" style="max-height:400px;">
+        ${sends.map(s => `
+          <div class="email-item">
+            <span class="email-name">${s.recipient_name || s.recipient_email}</span>
+            <span>${s.recipient_email}</span>
+            <span style="color:${s.status==='sent'?'var(--green)':'var(--red)'};margin-left:auto;font-weight:600;">${s.status.toUpperCase()}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = '<div class="log-err">Error: ' + e.message + '</div>';
+  }
+}
+
+function closeHistoryDetail() {
+  document.getElementById('historyDetail').style.display = 'none';
+  document.getElementById('historyList').style.display = 'block';
 }
 </script>
 </body>
