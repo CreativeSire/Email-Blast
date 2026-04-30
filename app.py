@@ -27,7 +27,11 @@ def test_connection():
             info = r.json()
             return jsonify({"success": True, "email": info.get("email", "Account verified")})
         else:
-            return jsonify({"success": False, "message": f"Invalid API key ({r.status_code})"}), 400
+            try:
+                err = r.json()
+                return jsonify({"success": False, "message": err.get("message", f"Brevo error {r.status_code}")}), 400
+            except:
+                return jsonify({"success": False, "message": f"Brevo error {r.status_code}: {r.text}"}), 400
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -75,8 +79,11 @@ def send_batch():
             if r.ok:
                 sent.append(email)
             else:
-                err = r.json()
-                failed.append({"email": email, "reason": err.get("message", str(r.status_code))})
+                try:
+                    err = r.json()
+                    failed.append({"email": email, "reason": err.get("message", str(r.status_code))})
+                except:
+                    failed.append({"email": email, "reason": f"Brevo error {r.status_code}: {r.text}"})
         except Exception as e:
             failed.append({"email": email, "reason": str(e)})
 
