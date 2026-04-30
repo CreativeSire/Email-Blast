@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gateway to East Africa | Email Command Centre</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --gold: #c9a84c;
+    --gold-light: #e8cc85;
+    --gold-dim: rgba(201,168,76,0.12);
+    --white: #f5f3ee;
+    --grey: #1a1a1a;
+    --grey2: #252525;
+    --grey3: #333;
+    --text-muted: #777;
+    --green: #3ddc84;
+    --red: #ff5c5c;
+    --blue: #5c9fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; font-size: 14px; }
+
+  .header {
+    border-bottom: 1px solid var(--grey2); padding: 18px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,10,0.97); backdrop-filter: blur(12px);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 34px; height: 34px; border: 1.5px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-size: 15px; color: var(--gold);
+  }
+  .logo-name { font-family: 'Playfair Display', serif; font-size: 15px; }
+  .logo-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; letter-spacing: 0.04em; }
+  .badge {
+    background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.4);
+    color: var(--gold); font-size: 11px; padding: 4px 14px; letter-spacing: 0.07em; font-weight: 500;
+  }
+
+  .main { max-width: 1080px; margin: 0 auto; padding: 40px 40px 100px; }
+
+  .page-intro { margin-bottom: 36px; }
+  .section-label { font-size: 10px; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+  h2 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 400; margin-bottom: 4px; }
+  .subtitle { color: var(--text-muted); font-size: 13px; }
+
+  .counter-strip { display: flex; border: 1px solid var(--grey2); margin-bottom: 32px; }
+  .counter-item { flex: 1; padding: 18px 20px; border-right: 1px solid var(--grey2); text-align: center; }
+  .counter-item:last-child { border-right: none; }
+  .counter-num { font-family: 'Playfair Display', serif; font-size: 32px; line-height: 1; }
+  .counter-num.gold { color: var(--gold); }
+  .counter-num.green { color: var(--green); }
+  .counter-num.red { color: var(--red); }
+  .counter-num.blue { color: var(--blue); }
+  .counter-label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--grey2); margin-bottom: 28px; }
+  .tab { padding: 12px 22px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); transition: all 0.2s; font-weight: 500; margin-bottom: -1px; user-select: none; }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab:hover:not(.active) { color: var(--white); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .card { background: var(--grey); border: 1px solid var(--grey2); padding: 24px; position: relative; margin-bottom: 20px; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--gold), transparent); }
+
+  label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+  input[type=text], input[type=password], input[type=email], input[type=datetime-local], textarea, select {
+    width: 100%; background: var(--black); border: 1px solid var(--grey3);
+    color: var(--white); padding: 10px 14px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 160px; line-height: 1.7; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-20 { margin-top: 20px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .flex { display: flex; }
+  .gap-12 { gap: 12px; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+
+  .btn { padding: 11px 26px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; letter-spacing: 0.04em; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-gold { background: var(--gold); color: var(--black); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline { background: transparent; border: 1px solid var(--grey3); color: var(--white); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-green { background: var(--green); color: var(--black); }
+  .btn-green:hover { opacity: 0.85; }
+  .btn-red { background: var(--red); color: var(--white); }
+  .btn-sm { padding: 7px 16px; font-size: 12px; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .upload-zone { border: 1.5px dashed var(--grey3); padding: 44px; text-align: center; cursor: pointer; transition: all 0.2s; background: transparent; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: var(--gold-dim); }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-text { color: var(--text-muted); font-size: 13px; }
+  .upload-text strong { color: var(--gold); cursor: pointer; }
+
+  .email-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--grey2); }
+  .email-list::-webkit-scrollbar { width: 3px; }
+  .email-list::-webkit-scrollbar-thumb { background: var(--gold); }
+  .email-item { padding: 8px 14px; border-bottom: 1px solid var(--grey2); font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; }
+  .email-item:last-child { border-bottom: none; }
+  .email-name { color: var(--white); min-width: 140px; }
+
+  .compose-tabs { display: flex; gap: 0; border: 1px solid var(--grey2); margin-bottom: 20px; }
+  .compose-tab { flex: 1; padding: 10px; text-align: center; font-size: 12px; cursor: pointer; color: var(--text-muted); border-right: 1px solid var(--grey2); transition: all 0.2s; font-weight: 500; }
+  .compose-tab:last-child { border-right: none; }
+  .compose-tab.active { background: var(--gold-dim); color: var(--gold); }
+  .compose-tab:hover:not(.active) { color: var(--white); }
+
+  .schedule-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--black); border: 1px solid var(--grey2); margin-bottom: 8px; }
+  .type-badge { font-size: 10px; letter-spacing: 0.07em; padding: 3px 9px; font-weight: 600; flex-shrink: 0; }
+  .type-blast { background: rgba(201,168,76,0.2); color: var(--gold); }
+  .type-reminder { background: rgba(93,159,255,0.15); color: var(--blue); }
+  .type-urgent { background: rgba(255,92,92,0.15); color: var(--red); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-pending { background: var(--grey3); }
+  .dot-sending { background: var(--gold); animation: pulse 1s infinite; }
+  .dot-done { background: var(--green); }
+  .dot-failed { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.2} }
+
+  .sched-label { font-size: 11px; color: var(--text-muted); flex: 1; }
+  .sched-status { font-size: 11px; color: var(--text-muted); min-width: 120px; text-align: right; }
+
+  .warning-box { background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.25); padding: 14px 18px; font-size: 12px; color: #d4b870; line-height: 1.7; margin-bottom: 20px; }
+
+  .checklist-item { padding: 10px 0; border-bottom: 1px solid var(--grey2); font-size: 13px; }
+  .checklist-item:last-child { border-bottom: none; }
+  .check-ok { color: var(--green); }
+  .check-fail { color: var(--red); }
+
+  .progress-bar { height: 3px; background: var(--grey2); margin-top: 10px; }
+  .progress-fill { height: 100%; background: var(--gold); transition: width 0.4s; width: 0%; }
+
+  .log-box { background: #050505; border: 1px solid var(--grey2); padding: 14px 18px; max-height: 220px; overflow-y: auto; font-size: 12px; font-family: 'Courier New', monospace; line-height: 1.9; }
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--gold); }
+  .log-ok { color: var(--green); }
+  .log-err { color: var(--red); }
+  .log-info { color: var(--gold); }
+  .log-muted { color: #444; }
+
+  @media (max-width: 700px) {
+    .main { padding: 24px 16px 80px; }
+    .header { padding: 14px 16px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .counter-strip { flex-wrap: wrap; }
+    .counter-item { min-width: 50%; border-bottom: 1px solid var(--grey2); }
+    .schedule-row { flex-wrap: wrap; }
+    .compose-tabs { flex-wrap: wrap; }
+    .compose-tab { min-width: 50%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">G</div>
+    <div>
+      <div class="logo-name">Gateway to East Africa</div>
+      <div class="logo-sub">Email Command Centre</div>
+    </div>
+  </div>
+  <div class="badge">1 MAY 2026 · 11:00 AM WAT</div>
+</div>
+
+<div class="main">
+  <div class="page-intro">
+    <div class="section-label">Campaign Manager</div>
+    <h2>Email Blast System</h2>
+    <p class="subtitle">Upload contacts, compose all 4 emails, set your schedule, and send to everyone at once.</p>
+  </div>
+
+  <div class="counter-strip">
+    <div class="counter-item"><div class="counter-num gold" id="cnt-total">0</div><div class="counter-label">Contacts</div></div>
+    <div class="counter-item"><div class="counter-num green" id="cnt-sent">0</div><div class="counter-label">Sent</div></div>
+    <div class="counter-item"><div class="counter-num red" id="cnt-failed">0</div><div class="counter-label">Failed</div></div>
+    <div class="counter-item"><div class="counter-num blue" id="cnt-scheduled">0</div><div class="counter-label">Scheduled</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('contacts')">① Contacts</div>
+    <div class="tab" onclick="switchTab('compose')">② Compose</div>
+    <div class="tab" onclick="switchTab('schedule')">③ Schedule</div>
+    <div class="tab" onclick="switchTab('launch')">④ Launch</div>
+  </div>
+
+  <!-- TAB 1 -->
+  <div class="tab-panel active" id="tab-contacts">
+    <div class="warning-box">
+      Your Excel file needs a column named <strong>Email</strong>. A <strong>Name</strong> or <strong>First Name</strong> column is optional but recommended for personalisation.
+    </div>
+    <div class="upload-zone" id="uploadZone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <div class="upload-icon">📊</div>
+      <div class="upload-text"><strong>Click to upload</strong> or drag your Excel file here</div>
+      <div class="upload-text" style="font-size:11px;margin-top:6px;">.xlsx or .xls files only</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this.files[0])">
+
+    <div id="contactPreview" style="display:none" class="mt-20">
+      <div class="flex items-center justify-between mb-12">
+        <div class="section-label" style="margin:0">Loaded Contacts</div>
+        <span id="contactCount" style="font-size:12px;color:var(--gold);font-weight:600;"></span>
+      </div>
+      <div class="email-list" id="emailListDisplay"></div>
+      <div class="mt-16">
+        <button class="btn btn-gold" onclick="switchTab('compose')">Continue to Compose &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2 -->
+  <div class="tab-panel" id="tab-compose">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="section-label mb-12">Sender Settings</div>
+      <div class="grid-2" style="gap:16px;margin-bottom:14px;">
+        <div><label>From Name</label><input type="text" id="from-name" value="Adewale Ajibade RSV | Gateway to East Africa"></div>
+        <div><label>Sender Email</label><input type="text" id="sender-email" value="gatewaytoeastafrica@gmail.com"></div>
+      </div>
+      <div class="grid-2" style="gap:16px;">
+        <div><label>Reply-To Email</label><input type="text" id="reply-to" value="gatewaytoeastafrica@gmail.com"></div>
+        <div><label>Brevo API Key</label><input type="password" id="api-key-compose" value="" placeholder="Enter your Brevo API key"></div>
+      </div>
+    </div>
+
+    <div class="compose-tabs">
+      <div class="compose-tab active" id="ctab-confirmation" onclick="switchComposeTab('confirmation')">Confirmation</div>
+      <div class="compose-tab" id="ctab-reminder6" onclick="switchComposeTab('reminder6')">6-Hour Reminder</div>
+      <div class="compose-tab" id="ctab-reminder1h" onclick="switchComposeTab('reminder1h')">1-Hour Reminder</div>
+      <div class="compose-tab" id="ctab-reminder30" onclick="switchComposeTab('reminder30')">30-Min Reminder</div>
+    </div>
+
+    <div id="compose-confirmation" class="compose-panel">
+      <div class="mb-16"><label>Subject Line</label><input type="text" id="sub-confirmation" value="You're In — Gateway to East Africa: Kenya | Friday, 1 May · 11AM WAT"></div>
+      <div><label>Body <span style="color:var(--text-muted);font-weight:400">(use {{name}} for first name)</span></label>
+      <textarea id="body-confirmation">Dear {{name}},
+
+Your spot is confirmed. We are glad to have you.
+
+On Friday, you will be sitting in a live session with Kenya's top developers, legal practitioners, certified valuers, and diaspora investment specialists — all active in the market today. Ten speakers. One focused session. Built entirely for serious Nigerian investors ready to expand into East Africa.
+
+
+YOUR SESSION DETAILS
+________________________________
+
+Date:       Friday, 1 May 2026
+Time:       11:00 AM (WAT / GMT+1)
+Platform:   Live on Zoom
+Join Link:  https://us05web.zoom.us/j/82663839208?pwd=WWAm4gbucoeYjOMgrXMa5ba07oRSiJ.1
+Meeting ID: 826 6383 9208
+Passcode:   684011
+
+Save these details now. We recommend joining five minutes early as the session starts promptly.
+
+
+WHAT TO EXPECT
+________________________________
+
+This is a practitioner-led session, not a sales pitch. You will walk away with clarity on foreign ownership laws, high-yield investment zones, ROI projections, and exactly how to transact remotely from Nigeria into Kenya, safely and compliantly.
+
+As a registered attendee, you also receive:
+
+  - Priority access to pre-vetted deals before public release
+  - Developer-direct pricing with no agent markups
+  - A complimentary post-session advisory call with the DCL team
+  - Exclusive Kenya market intelligence reports
+  - Live legal Q&A with MMW Advocates LLP
+
+
+Any questions before Friday? Reach us at:
+gatewaytoeastafrica@gmail.com
++234 904 333 3000
+
+See you at 11.
+
+Warm regards,
+Adewale Ajibade RSV
+Managing Director, Dewale Consulting Limited
+Convener, Gateway to East Africa
+consultdewale.com</textarea></div>
+    </div>
+
+    <div id="compose-reminder6" class="compose-panel" style="display:none">
+      <div class="mb-16"><label>Subject Line</label><input type="text" id="sub-reminder6" value="Reminder: Gateway to East Africa goes live tomorrow at 11AM WAT"></div>
+      <div><label>Body</label>
+      <textarea id="body-reminder6">Dear {{name}},
+
+Just a reminder that tomorrow is the day.
+
+Gateway to East Africa: Kenya goes live at 11:00 AM WAT on Friday, 1 May 2026.
+
+Your Zoom details:
+Join Link:  https://us05web.zoom.us/j/82663839208?pwd=WWAm4gbucoeYjOMgrXMa5ba07oRSiJ.1
+Meeting ID: 826 6383 9208
+Passcode:   684011
+
+Ten specialist speakers. One live session. Everything you need to make a confident decision about the Kenyan market.
+
+We will see you there.
+
+Warm regards,
+Adewale Ajibade RSV
+Gateway to East Africa | consultdewale.com</textarea></div>
+    </div>
+
+    <div id="compose-reminder1h" class="compose-panel" style="display:none">
+      <div class="mb-16"><label>Subject Line</label><input type="text" id="sub-reminder1h" value="One hour to go — Gateway to East Africa starts at 11AM WAT"></div>
+      <div><label>Body</label>
+      <textarea id="body-reminder1h">Dear {{name}},
+
+One hour from now, we go live.
+
+Gateway to East Africa: Kenya begins at 11:00 AM WAT. Please join on time — we are starting promptly.
+
+Join here:
+https://us05web.zoom.us/j/82663839208?pwd=WWAm4gbucoeYjOMgrXMa5ba07oRSiJ.1
+Meeting ID: 826 6383 9208
+Passcode:   684011
+
+See you in the room.
+
+Adewale Ajibade RSV
+Gateway to East Africa</textarea></div>
+    </div>
+
+    <div id="compose-reminder30" class="compose-panel" style="display:none">
+      <div class="mb-16"><label>Subject Line</label><input type="text" id="sub-reminder30" value="30 minutes — Gateway to East Africa is almost live"></div>
+      <div><label>Body</label>
+      <textarea id="body-reminder30">Dear {{name}},
+
+We are 30 minutes away. Open your Zoom now and get ready.
+
+https://us05web.zoom.us/j/82663839208?pwd=WWAm4gbucoeYjOMgrXMa5ba07oRSiJ.1
+Meeting ID: 826 6383 9208
+Passcode:   684011
+
+Join five minutes early. The session starts at exactly 11:00 AM WAT.
+
+See you shortly.
+
+Adewale Ajibade RSV
+Gateway to East Africa</textarea></div>
+    </div>
+
+    <div class="mt-20">
+      <button class="btn btn-gold" onclick="switchTab('schedule')">Continue to Schedule &rarr;</button>
+    </div>
+  </div>
+
+  <!-- TAB 3 -->
+  <div class="tab-panel" id="tab-schedule">
+    <div class="warning-box">
+      The event is <strong>Friday 1 May 2026 at 11:00 AM WAT</strong>. Because this app runs on a server, scheduled sends will fire even if you close your browser. Set your times and activate.
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="section-label mb-12">Confirmation Blast</div>
+      <div class="schedule-row">
+        <div class="status-dot dot-pending" id="dot-confirmation"></div>
+        <span class="type-badge type-blast">BLAST</span>
+        <div><label style="margin:0 0 4px;font-size:11px;">Send At</label><input type="datetime-local" id="time-confirmation" style="width:210px;padding:7px 10px;font-size:12px;"></div>
+        <div class="sched-label">Confirmation — "You're In"</div>
+        <div class="sched-status" id="status-confirmation">Pending</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="section-label mb-12">6-Hour Reminder</div>
+      <div class="schedule-row">
+        <div class="status-dot dot-pending" id="dot-reminder6"></div>
+        <span class="type-badge type-reminder">REMINDER</span>
+        <div><label style="margin:0 0 4px;font-size:11px;">Send At</label><input type="datetime-local" id="time-reminder6" style="width:210px;padding:7px 10px;font-size:12px;"></div>
+        <div class="sched-label">6-Hour Reminder</div>
+        <div class="sched-status" id="status-reminder6">Pending</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="section-label mb-12">1-Hour Reminder</div>
+      <div class="schedule-row">
+        <div class="status-dot dot-pending" id="dot-reminder1h"></div>
+        <span class="type-badge type-reminder">REMINDER</span>
+        <div><label style="margin:0 0 4px;font-size:11px;">Send At</label><input type="datetime-local" id="time-reminder1h" style="width:210px;padding:7px 10px;font-size:12px;"></div>
+        <div class="sched-label">1-Hour Reminder</div>
+        <div class="sched-status" id="status-reminder1h">Pending</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="section-label mb-12">30-Minute Reminder</div>
+      <div class="schedule-row">
+        <div class="status-dot dot-pending" id="dot-reminder30"></div>
+        <span class="type-badge type-urgent">URGENT</span>
+        <div><label style="margin:0 0 4px;font-size:11px;">Send At</label><input type="datetime-local" id="time-reminder30" style="width:210px;padding:7px 10px;font-size:12px;"></div>
+        <div class="sched-label">30-Minute Reminder</div>
+        <div class="sched-status" id="status-reminder30">Pending</div>
+      </div>
+    </div>
+
+    <div class="flex gap-12 mt-16">
+      <button class="btn btn-outline" onclick="autoFillTimes()">Auto-fill Recommended Times</button>
+      <button class="btn btn-gold" onclick="switchTab('launch')">Continue to Launch &rarr;</button>
+    </div>
+  </div>
+
+  <!-- TAB 4 -->
+  <div class="tab-panel" id="tab-launch">
+    <div class="card mb-16">
+      <div class="section-label mb-12">Pre-Launch Checklist</div>
+      <div class="checklist-item check-fail" id="check-contacts">✗ No contacts loaded</div>
+      <div class="checklist-item check-fail" id="check-emails">✗ Email bodies not composed</div>
+      <div class="checklist-item check-fail" id="check-times">✗ Send times not configured</div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="flex gap-12" style="margin-bottom:10px;">
+        <button class="btn btn-green" onclick="activateCampaign()" id="launchBtn" style="font-size:14px;padding:14px 32px;">&#9654; Activate Campaign</button>
+        <button class="btn btn-red" onclick="stopCampaign()" id="stopBtn" disabled style="font-size:14px;padding:14px 32px;">&#9632; Stop All</button>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div id="progressLabel" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+    </div>
+
+    <div>
+      <div class="section-label mb-12">Live Log</div>
+      <div class="log-box" id="logBox">
+        <div class="log-muted">-- System ready. Activate campaign to begin. --</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let contacts = [];
+let scheduledTimers = {};
+let campaignActive = false;
+let sentCount = 0, failedCount = 0;
+
+function toLocalInput(date) {
+  const p = n => String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+}
+
+function autoFillTimes() {
+  const now = new Date();
+  document.getElementById('time-confirmation').value = toLocalInput(new Date(now.getTime() + 5*60000));
+  // Event: May 1 2026 10:00 UTC = 11:00 WAT
+  const event = new Date('2026-05-01T10:00:00Z');
+  document.getElementById('time-reminder6').value = toLocalInput(new Date(event.getTime() - 6*3600000));
+  document.getElementById('time-reminder1h').value = toLocalInput(new Date(event.getTime() - 3600000));
+  document.getElementById('time-reminder30').value = toLocalInput(new Date(event.getTime() - 30*60000));
+  log('info', 'Recommended times auto-filled based on event schedule.');
+}
+autoFillTimes();
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('.tabs .tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(name)) t.classList.add('active');
+  });
+  if (name === 'launch') updateChecklist();
+}
+
+function switchComposeTab(name) {
+  document.querySelectorAll('.compose-panel').forEach(p => p.style.display='none');
+  document.querySelectorAll('[id^="ctab-"]').forEach(t => t.classList.remove('active'));
+  document.getElementById('compose-'+name).style.display='block';
+  document.getElementById('ctab-'+name).classList.add('active');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws);
+      contacts = [];
+      data.forEach(row => {
+        const email = row['Email']||row['email']||row['EMAIL']||row['E-mail']||
+          Object.values(row).find(v => typeof v==='string' && v.includes('@'));
+        const name = row['First Name']||row['Name']||row['name']||row['first_name']||row['FirstName']||'Valued Investor';
+        if (email && typeof email==='string' && email.includes('@'))
+          contacts.push({email: email.trim(), name: String(name).trim()});
+      });
+      if (!contacts.length) { alert('No valid emails found. Ensure column is named "Email".'); return; }
+      document.getElementById('cnt-total').textContent = contacts.length;
+      renderContacts();
+      log('info', `Loaded ${contacts.length} contacts from "${file.name}"`);
+    } catch(err) { alert('Error reading file: '+err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function renderContacts() {
+  const prev = document.getElementById('contactPreview');
+  prev.style.display = 'block';
+  document.getElementById('contactCount').textContent = contacts.length + ' contacts ready';
+  document.getElementById('emailListDisplay').innerHTML =
+    contacts.slice(0,150).map(c => `<div class="email-item"><span class="email-name">${c.name}</span><span>${c.email}</span></div>`).join('') +
+    (contacts.length > 150 ? `<div class="email-item" style="color:var(--gold)">...and ${contacts.length-150} more</div>` : '');
+}
+
+function updateChecklist() {
+  const cc = document.getElementById('check-contacts');
+  const ce = document.getElementById('check-emails');
+  const ct = document.getElementById('check-times');
+  if (contacts.length > 0) { cc.className='checklist-item check-ok'; cc.textContent=`✓ ${contacts.length} contacts loaded`; }
+  else { cc.className='checklist-item check-fail'; cc.textContent='✗ No contacts loaded'; }
+  const allBodies = ['confirmation','reminder6','reminder1h','reminder30'].every(k => (document.getElementById('body-'+k)||{}).value?.trim().length > 20);
+  if (allBodies) { ce.className='checklist-item check-ok'; ce.textContent='✓ All 4 emails composed'; }
+  else { ce.className='checklist-item check-fail'; ce.textContent='✗ Email bodies not composed'; }
+  const allTimes = ['confirmation','reminder6','reminder1h','reminder30'].every(k => document.getElementById('time-'+k).value);
+  if (allTimes) { ct.className='checklist-item check-ok'; ct.textContent='✓ All send times configured'; }
+  else { ct.className='checklist-item check-fail'; ct.textContent='✗ Send times not configured'; }
+}
+
+async function sendBlast(emailKey) {
+  const apiKey = document.getElementById('api-key-compose').value.trim();
+  const senderEmail = document.getElementById('sender-email').value.trim();
+  const fromName = document.getElementById('from-name').value.trim();
+  const replyTo = document.getElementById('reply-to').value.trim();
+  const subject = document.getElementById('sub-'+emailKey).value.trim();
+  const body = document.getElementById('body-'+emailKey).value.trim();
+
+  setDot(emailKey,'sending');
+  document.getElementById('status-'+emailKey).textContent = 'Sending...';
+  log('info', `Starting blast [${emailKey}] to ${contacts.length} contacts...`);
+
+  const BATCH = 10;
+  let sent=0, failed=0;
+
+  for (let i=0; i<contacts.length; i+=BATCH) {
+    if (!campaignActive) break;
+    const batch = contacts.slice(i, i+BATCH);
+    const res = await fetch('/api/send-batch', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        api_key: apiKey, sender_email: senderEmail,
+        from_name: fromName, reply_to: replyTo,
+        subject, body, contacts: batch
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      sent += data.sent;
+      failed += data.failed.length;
+      sentCount += data.sent;
+      failedCount += data.failed.length;
+      data.failed.forEach(f => log('err', `Failed: ${f.email} — ${f.reason}`));
+    } else {
+      log('err', `Batch error: ${data.message}`);
+    }
+    document.getElementById('cnt-sent').textContent = sentCount;
+    document.getElementById('cnt-failed').textContent = failedCount;
+    const pct = Math.round(((i+BATCH)/contacts.length)*100);
+    document.getElementById('progressFill').style.width = Math.min(pct,100)+'%';
+    document.getElementById('progressLabel').textContent = `${Math.min(i+BATCH,contacts.length)} of ${contacts.length} processed...`;
+    await sleep(200);
+  }
+
+  setDot(emailKey, sent > 0 ? 'done' : 'failed');
+  document.getElementById('status-'+emailKey).textContent = `${sent} sent, ${failed} failed`;
+  log('ok', `[${emailKey}] complete: ${sent} sent, ${failed} failed.`);
+}
+
+function setDot(key, status) {
+  document.getElementById('dot-'+key).className = 'status-dot dot-'+status;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
+
+async function activateCampaign() {
+  if (!contacts.length) { alert('Load your contacts first.'); return; }
+  const apiKey = document.getElementById('api-key-compose').value.trim();
+  if (!apiKey) { alert('Enter your Brevo API key in the Compose tab.'); return; }
+
+  campaignActive = true;
+  document.getElementById('launchBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('cnt-scheduled').textContent = 4;
+  log('info', 'Campaign activated. Monitoring schedule...');
+
+  ['confirmation','reminder6','reminder1h','reminder30'].forEach(key => {
+    const val = document.getElementById('time-'+key).value;
+    if (!val) { log('err', `No time set for ${key}, skipping.`); return; }
+    const delay = new Date(val).getTime() - Date.now();
+    if (delay < 0) {
+      log('err', `Time already passed for [${key}]. Skipping.`);
+      setDot(key,'failed');
+      document.getElementById('status-'+key).textContent = 'Skipped';
+      return;
+    }
+    log('info', `[${key}] scheduled for ${new Date(val).toLocaleString()}`);
+    scheduledTimers[key] = setTimeout(async () => {
+      if (!campaignActive) return;
+      await sendBlast(key);
+      const rem = Object.values(scheduledTimers).filter(Boolean).length;
+      document.getElementById('cnt-scheduled').textContent = Math.max(0, rem-1);
+    }, delay);
+  });
+}
+
+function stopCampaign() {
+  campaignActive = false;
+  Object.values(scheduledTimers).forEach(clearTimeout);
+  scheduledTimers = {};
+  document.getElementById('launchBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('cnt-scheduled').textContent = 0;
+  log('err', 'Campaign stopped by user.');
+}
+
+function log(type, msg) {
+  const box = document.getElementById('logBox');
+  const t = new Date().toLocaleTimeString();
+  const cls = {ok:'log-ok', err:'log-err', info:'log-info'}[type] || 'log-muted';
+  const pre = {ok:'✓', err:'✗', info:'ℹ'}[type] || '·';
+  box.innerHTML += `<div class="${cls}">[${t}] ${pre} ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>
