@@ -83,15 +83,6 @@ def send_batch():
     return jsonify({"success": True, "sent": len(sent), "failed": failed})
 
 
-@app.route("/api/server-ip")
-def server_ip():
-    try:
-        r = requests.get("https://api.ipify.org?format=json", timeout=10)
-        return jsonify(r.json())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
